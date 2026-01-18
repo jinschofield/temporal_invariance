@@ -318,12 +318,12 @@ def run_online_training(cfg, env_id, method, seed, alpha, output_dir):
             steps_per_sec = step / max(elapsed, 1e-9)
             eta = (total_steps - step) / max(steps_per_sec, 1e-9)
             q_loss_str = f"{last_q_loss:.4f}" if last_q_loss is not None else "n/a"
-             rep_str = f"{last_rep_metric:.4f}" if last_rep_metric is not None else "n/a"
-             if len(success_window) > 0:
-                 success_rate = sum(success_window) / float(len(success_window))
-                 success_str = f"{success_rate:.3f} (last {len(success_window)})"
-             else:
-                 success_str = "n/a"
+            rep_str = f"{last_rep_metric:.4f}" if last_rep_metric is not None else "n/a"
+            if len(success_window) > 0:
+                success_rate = sum(success_window) / float(len(success_window))
+                success_str = f"{success_rate:.3f} (last {len(success_window)})"
+            else:
+                success_str = "n/a"
             print(
                 f"[Online] step {step}/{total_steps} eps={epsilon:.3f} buffer={buffer.size} "
                  f"q_loss={q_loss_str} rep_metric={rep_str} success={success_str} "
