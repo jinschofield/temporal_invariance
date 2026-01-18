@@ -381,10 +381,14 @@ def run_online_training(
                 success_ema_str = f"{success_ema:.3f}"
             else:
                 success_ema_str = "n/a"
+            if logs:
+                auc_str = f"{_auc_success_from_logs(logs):.1f}"
+            else:
+                auc_str = "n/a"
             print(
                 f"[Online] step {step}/{total_steps} eps={epsilon:.3f} buffer={buffer.size} "
                  f"q_loss={q_loss_str} rep_metric={rep_str} success={success_str} "
-                f"ema={success_ema_str} cum={success_cum_str} "
+                f"ema={success_ema_str} cum={success_cum_str} auc={auc_str} "
                 f"{steps_per_sec:.1f} steps/s ETA {eta/60:.1f}m",
                 flush=True,
             )
