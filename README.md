@@ -44,16 +44,15 @@ Each notebook calls `scripts/run_figures.py` with a Drive‑based config:
   - `never`: never apply RL profile
 - Use `runtime.rl_profile` to define the max‑throughput settings.
 
-## Optuna (hyperparameter search)
-```
-python scripts/optuna_search.py --config configs/paper.yaml --optuna-config configs/optuna.yaml
-```
-
 ## Optuna (online RL)
 ```
 python scripts/optuna_online.py --config configs/paper.yaml --optuna-config configs/optuna_online.yaml
 ```
 Best params are saved to `outputs/runs/optuna_online/best_params.json`.
+Env-specific configs used by notebooks 04–06:
+`configs/optuna_online_periodicity.yaml`,
+`configs/optuna_online_slippery.yaml`,
+`configs/optuna_online_teacup.yaml`.
 
 ## Online RL
 ```
