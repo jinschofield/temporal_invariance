@@ -1,5 +1,6 @@
 import os
 import time
+from collections import deque
 from contextlib import nullcontext
 from dataclasses import dataclass
 
@@ -236,6 +237,7 @@ def run_online_training(cfg, env_id, method, seed, alpha, output_dir):
     eps_steps = max(1, int(online_cfg["eps_decay_steps"]))
 
     logs = []
+    success_window = deque(maxlen=int(online_cfg.get("success_window", 100)))
     heatmap = torch.zeros((maze_cfg["maze_size"], maze_cfg["maze_size"]), device=device)
     ep_extr = torch.zeros((online_cfg["num_envs"],), device=device)
     ep_intr = torch.zeros((online_cfg["num_envs"],), device=device)
@@ -280,14 +282,16 @@ def run_online_training(cfg, env_id, method, seed, alpha, output_dir):
         if done.any():
             done_ids = torch.nonzero(done).squeeze(-1)
             for idx in done_ids.tolist():
+                success_flag = int(ep_extr[idx].item() > 0)
                 logs.append(
                     OnlineResult(
                         env_step=step,
                         episode_return_extrinsic=float(ep_extr[idx].item()),
                         episode_return_intrinsic=float(ep_intr[idx].item()),
-                        success=int(ep_extr[idx].item() > 0),
+                        success=success_flag,
                     )
                 )
+                success_window.append(success_flag)
             ep_extr[done_ids] = 0.0
             ep_intr[done_ids] = 0.0
             bonus.reset(done_ids)
@@ -314,10 +318,15 @@ def run_online_training(cfg, env_id, method, seed, alpha, output_dir):
             steps_per_sec = step / max(elapsed, 1e-9)
             eta = (total_steps - step) / max(steps_per_sec, 1e-9)
             q_loss_str = f"{last_q_loss:.4f}" if last_q_loss is not None else "n/a"
-            rep_str = f"{last_rep_metric:.4f}" if last_rep_metric is not None else "n/a"
+             rep_str = f"{last_rep_metric:.4f}" if last_rep_metric is not None else "n/a"
+             if len(success_window) > 0:
+                 success_rate = sum(success_window) / float(len(success_window))
+                 success_str = f"{success_rate:.3f} (last {len(success_window)})"
+             else:
+                 success_str = "n/a"
             print(
                 f"[Online] step {step}/{total_steps} eps={epsilon:.3f} buffer={buffer.size} "
-                f"q_loss={q_loss_str} rep_metric={rep_str} "
+                 f"q_loss={q_loss_str} rep_metric={rep_str} success={success_str} "
                 f"{steps_per_sec:.1f} steps/s ETA {eta/60:.1f}m",
                 flush=True,
             )
