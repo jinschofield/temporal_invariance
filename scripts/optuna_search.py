@@ -1,5 +1,4 @@
 import argparse
-import json
 import os
 import time
 
@@ -165,108 +164,6 @@ def objective_factory(cfg, opt_cfg):
     return objective
 
 
-def _refit_best(cfg, opt_cfg, best_params, study_name):
-    runtime = cfg["runtime"]
-    methods_cfg = cfg["methods"]
-    probe_cfg = methods_cfg["probes"]
-    maze_cfg = build_maze_cfg(cfg)
-
-    env_id = opt_cfg.get("env_id", "teacup")
-    method = opt_cfg.get("method", "CRTR")
-    metric = opt_cfg.get("metric", "nuis_acc")
-    env_spec = get_env_spec(cfg, env_id)
-    device = torch.device(runtime.get("device") or ("cuda" if torch.cuda.is_available() else "cpu"))
-
-    train_steps = int(opt_cfg.get("refit_train_steps", methods_cfg["train"]["offline_train_steps"]))
-    collect_steps = int(opt_cfg.get("refit_collect_steps", methods_cfg["train"]["offline_collect_steps"]))
-    num_envs = int(opt_cfg.get("refit_num_envs", methods_cfg["train"]["offline_num_envs"]))
-    batch_size = int(opt_cfg.get("refit_batch_size", methods_cfg["train"]["offline_batch_size"]))
-    inv_samples = int(opt_cfg.get("refit_inv_samples", 2048))
-
-    if method != "CRTR":
-        raise ValueError("Refit currently supports CRTR only.")
-
-    cache_path = os.path.join(runtime["cache_dir"], f"{env_id}_seed{runtime['seed']}_refit.pt")
-    if runtime.get("cache_datasets", True) and os.path.exists(cache_path):
-        buf, epi = load_buffer(cache_path, device)
-        env = make_env(env_spec["ctor"], num_envs=num_envs, maze_cfg=maze_cfg, device=device)
-    else:
-        buf, env = collect_offline_dataset(env_spec["ctor"], collect_steps, num_envs, maze_cfg, device)
-        from ti.data.buffer import build_episode_index_strided
-
-        epi = build_episode_index_strided(buf.timestep, buf.size, num_envs, device)
-        if runtime.get("cache_datasets", True):
-            save_buffer(cache_path, buf, epi)
-
-    obs_all = buf.s[: buf.size]
-    y_all = buf.nuis[: buf.size].long()
-
-    if env_spec.get("probe_mask") == "special_only":
-        mask = buf.special[: buf.size]
-        obs = obs_all[mask]
-        y = y_all[mask]
-    else:
-        obs = obs_all
-        y = y_all
-
-    num_classes = int(env_spec["classes"])
-    obs1, obs2 = env.sample_invariance_pairs(inv_samples)
-
-    learner = OfflineRepLearner(
-        "CRTR",
-        obs_dim=maze_cfg["obs_dim"],
-        z_dim=int(best_params["z_dim"]),
-        hidden_dim=int(best_params["hidden_dim"]),
-        n_actions=maze_cfg["n_actions"],
-        crtr_temp=float(best_params["crtr_temp"]),
-        crtr_rep=int(best_params["crtr_rep"]),
-        k_cap=int(best_params["k_cap"]),
-        geom_p=float(best_params["geom_p"]),
-        device=device,
-        lr=float(best_params["lr"]),
-    ).to(device)
-
-    learner.train_steps(
-        buf,
-        epi,
-        train_steps,
-        batch_size,
-        log_every=methods_cfg["train"]["print_train_every"],
-        use_amp=runtime.get("use_amp", False),
-        amp_dtype=runtime.get("amp_dtype", "bf16"),
-    )
-
-    enc = lambda x, L=learner: L.rep_enc(x)
-    acc, mi = run_linear_probe_any(enc, obs, y, num_classes, probe_cfg, seed=runtime["seed"], device=device)
-    inv = invariance_metric_from_pairs(enc, obs1, obs2)
-    xy_mse = run_xy_regression_probe(enc, obs_all, probe_cfg, seed=runtime["seed"], device=device)
-
-    refit = {
-        "study_name": study_name,
-        "env_id": env_id,
-        "method": method,
-        "seed": int(runtime.get("seed", 0)),
-        "train_steps": train_steps,
-        "collect_steps": collect_steps,
-        "num_envs": num_envs,
-        "batch_size": batch_size,
-        "params": best_params,
-        "metrics": {
-            "nuis_acc": float(acc),
-            "nuis_mi": float(mi),
-            "inv": float(inv),
-            "xy_mse": float(xy_mse),
-        },
-    }
-
-    out_dir = os.path.join(runtime.get("output_dir", "outputs"), "runs", "optuna")
-    ensure_dir(out_dir)
-    refit_path = os.path.join(out_dir, f"{study_name}_refit.json")
-    with open(refit_path, "w", encoding="utf-8") as f:
-        json.dump(refit, f, indent=2)
-    print(f"Saved refit metrics to: {refit_path}")
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/paper.yaml")
@@ -306,21 +203,8 @@ def main():
     objective = objective_factory(cfg, opt_cfg)
     study.optimize(objective, n_trials=int(opt_cfg.get("n_trials", 20)), catch=(Exception,))
 
-    best = {
-        "value": float(study.best_value),
-        "params": study.best_params,
-        "trial": int(study.best_trial.number),
-        "study_name": study.study_name,
-    }
-    best_path = os.path.join(os.path.dirname(storage_path), f"{study_name}_best.json")
-    with open(best_path, "w", encoding="utf-8") as f:
-        json.dump(best, f, indent=2)
     print("Best trial:")
-    print(best)
-    print(f"Saved best params to: {best_path}")
-
-    if opt_cfg.get("refit_best", False):
-        _refit_best(cfg, opt_cfg, best["params"], study_name)
+    print(study.best_trial)
 
 
 if __name__ == "__main__":
