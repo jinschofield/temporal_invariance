@@ -275,6 +275,10 @@ def run_online_training(
 
     logs = []
     success_window = deque(maxlen=int(online_cfg.get("success_window", 100)))
+    success_total = 0
+    episodes_total = 0
+    success_ema = None
+    ema_alpha = float(online_cfg.get("success_ema_alpha", 0.05))
     heatmap = torch.zeros((maze_cfg["maze_size"], maze_cfg["maze_size"]), device=device)
     ep_extr = torch.zeros((online_cfg["num_envs"],), device=device)
     ep_intr = torch.zeros((online_cfg["num_envs"],), device=device)
@@ -329,6 +333,12 @@ def run_online_training(
                     )
                 )
                 success_window.append(success_flag)
+                success_total += success_flag
+                episodes_total += 1
+                if success_ema is None:
+                    success_ema = float(success_flag)
+                else:
+                    success_ema = (1.0 - ema_alpha) * success_ema + ema_alpha * float(success_flag)
             ep_extr[done_ids] = 0.0
             ep_intr[done_ids] = 0.0
             bonus.reset(done_ids)
@@ -362,9 +372,19 @@ def run_online_training(
                 success_str = f"{success_rate:.3f} (last {len(success_window)})"
             else:
                 success_str = "n/a"
+            if episodes_total > 0:
+                success_cum = success_total / float(episodes_total)
+                success_cum_str = f"{success_cum:.3f}"
+            else:
+                success_cum_str = "n/a"
+            if success_ema is not None:
+                success_ema_str = f"{success_ema:.3f}"
+            else:
+                success_ema_str = "n/a"
             print(
                 f"[Online] step {step}/{total_steps} eps={epsilon:.3f} buffer={buffer.size} "
                  f"q_loss={q_loss_str} rep_metric={rep_str} success={success_str} "
+                f"ema={success_ema_str} cum={success_cum_str} "
                 f"{steps_per_sec:.1f} steps/s ETA {eta/60:.1f}m",
                 flush=True,
             )
