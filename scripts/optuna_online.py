@@ -23,6 +23,9 @@ def _auc_success(df: pd.DataFrame) -> float:
 
 def objective_factory(cfg, opt_cfg):
     runtime = cfg["runtime"]
+    mode = runtime.get("throughput_mode", "never")
+    if mode in ("always", "rl_only"):
+        runtime.update(runtime.get("rl_profile", {}))
     methods_cfg = cfg["methods"]
 
     env_id = opt_cfg.get("env_id", "periodicity")
