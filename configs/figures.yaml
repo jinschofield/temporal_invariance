@@ -1,4 +1,17 @@
 figures:
+  fig02_envs:
+    generator: envs_overview
+    title: Environments
+
+  fig01_tsne:
+    generator: tsne
+    title: t-SNE invariance collapse
+    env: periodicity
+    method_a: CRTR_R8
+    method_b: ICM
+    num_positions: 200
+    num_nuisances: 8
+
   rep_sweep:
     generator: rep_sweep
     title: Representation sweep
@@ -6,14 +19,81 @@ figures:
     crtr_rep_list: [1, 2, 4, 8, 16, 32, 64]
     inv_samples: 2048
 
+  fig04_repr_invariance:
+    generator: repr_invariance
+    title: Representational invariance
+    envs: [periodicity, slippery, teacup]
+
+  fig09_rep_factor_sweep:
+    generator: rep_factor_sweep
+    title: Repetition factor sweep
+    envs: [periodicity, slippery, teacup]
+    metric: inv
+
+  fig08_crtr_over_time:
+    generator: crtr_over_time
+    title: CRTR convergence over time
+    env: periodicity
+    steps: [0, 1000, 2000, 4000, 6000, 8000, 10000, 15000, 20000]
+
+  fig13_xy_regression:
+    generator: xy_regression
+    title: XY regression error
+    envs: [periodicity, slippery, teacup]
+
   elliptical_heatmaps:
     generator: elliptical_heatmaps
     title: Elliptical bonus heatmaps
     envs: [periodicity, slippery, teacup]
     crtr_rep_list: [1, 2, 4, 8, 16, 32, 64]
 
+  fig05_bonus_invariance:
+    generator: bonus_invariance
+    title: Bonus invariance
+    envs: [Periodicity, Slippery, Teacup Maze]
+
+  fig10_corr_repr_vs_bonus:
+    generator: corr_repr_vs_bonus
+    title: Correlation between representation and bonus invariance
+    metric_x: inv
+    metric_y: orbit_ratio_W_over_B
+
+  fig11_teacup_analysis:
+    generator: teacup_analysis
+    title: Teacup analysis
+
   teacup_elliptical_only:
     generator: teacup_elliptical_only
     title: Teacup elliptical scalars
     envs: [teacup]
     crtr_rep_list: [1, 2, 4, 8, 16, 32, 64]
+
+  fig03_end2end:
+    generator: end2end
+    title: End-to-end invariance
+    env: periodicity
+    method_a: CRTR
+    method_b: ICM
+    alpha: 1.0
+    profile: rl
+
+  fig06_convergence:
+    generator: convergence
+    title: Accelerated convergence
+    env: periodicity
+    methods: [CRTR, ICM, RND, IDM, BISCUIT, CBM]
+    alpha: 1.0
+    profile: rl
+
+  fig07_spearman:
+    generator: spearman
+    title: Spearman correlation
+    metric: orbit_ratio_W_over_B
+    profile: rl
+
+  fig12_hparam_sweep:
+    generator: hparam_sweep
+    title: Hyperparameter sweep
+    env: periodicity
+    method: CRTR
+    profile: rl

@@ -42,7 +42,7 @@ def plot_env_bars(
     if highlight_best and len(vals) > 0:
         best_idx = int(np.argmax(vals)) if higher_better else int(np.argmin(vals))
         palette[best_idx] = base[best_idx]
-    sns.barplot(x=names, y=vals, palette=palette)
+    sns.barplot(x=names, y=vals, hue=names, palette=palette, legend=False)
     if chance_line is not None:
         plt.axhline(chance_line, ls="--", lw=0.8, color="#888888")
     plt.title(f"{env_name}: {title}")

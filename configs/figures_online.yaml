@@ -12,7 +12,7 @@ figures:
     generator: convergence
     title: Accelerated convergence
     env: periodicity
-    methods: [CRTR, ICM, RND]
+    methods: [CRTR, ICM, RND, IDM, BISCUIT, CBM]
     alpha: 1.0
     profile: rl
 

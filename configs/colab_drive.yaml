@@ -1,8 +1,8 @@
 runtime:
   seed: 0
   device: null
-  output_dir: outputs
-  cache_dir: outputs/cache
+  output_dir: /content/drive/MyDrive/temporal_invariance/outputs
+  cache_dir: /content/drive/MyDrive/temporal_invariance/outputs/cache
   deterministic: true
   cache_datasets: true
   save_config_snapshot: true
@@ -16,8 +16,7 @@ runtime:
   use_amp: true
   amp_dtype: bf16
   resume: true
-  auto_zip: true
-  auto_zip_interval: 15
+  auto_zip: false
   throughput_mode: rl_only
   rl_profile:
     deterministic: false

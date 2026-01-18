@@ -1,4 +1,5 @@
 import os
+from contextlib import nullcontext
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -75,7 +76,11 @@ def run(cfg, fig_id, fig_spec):
             dtype = torch.float16
         else:
             dtype = torch.bfloat16
-        with torch.cuda.amp.autocast(enabled=use_amp, dtype=dtype):
+        if use_amp and device.type == "cuda":
+            autocast_ctx = torch.autocast(device_type="cuda", dtype=dtype, enabled=True)
+        else:
+            autocast_ctx = nullcontext()
+        with autocast_ctx:
             loss = learner.loss(buf, epi, train_cfg["offline_batch_size"])
         learner.opt.zero_grad(set_to_none=True)
         loss.backward()
