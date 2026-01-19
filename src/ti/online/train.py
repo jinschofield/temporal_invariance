@@ -141,6 +141,11 @@ def run_online_training(
     maze_cfg = build_maze_cfg(cfg)
 
     device = torch.device(runtime.get("device") or ("cuda" if torch.cuda.is_available() else "cpu"))
+    if runtime.get("require_cuda", False) and device.type != "cuda":
+        raise RuntimeError(
+            "CUDA is required for online RL but no GPU is available. "
+            "Enable a GPU runtime or set runtime.require_cuda=false."
+        )
     seed_everything(int(seed), deterministic=bool(runtime.get("deterministic", True)))
 
     env_spec = get_env_spec(cfg, env_id)

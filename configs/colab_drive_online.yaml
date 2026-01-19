@@ -1,6 +1,7 @@
 runtime:
   seed: 0
   device: null
+  require_cuda: true
   output_dir: /content/drive/MyDrive/temporal_invariance/outputs
   cache_dir: /content/drive/MyDrive/temporal_invariance/outputs/cache
   deterministic: true
