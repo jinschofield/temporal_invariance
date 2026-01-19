@@ -68,6 +68,7 @@ methods:
     sac_entropy_alpha: 0.2
     sac_entropy_autotune: true
     sac_target_entropy_ratio: 0.98
+    sac_hard_target: false
     eps_start: 1.0
     eps_end: 0.05
     eps_decay_steps: 100000

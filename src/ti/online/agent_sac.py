@@ -141,7 +141,7 @@ class DiscreteSACAgent:
         probs, log_probs = self._policy_dist(s)
         q1_pi = self.q1(s)
         q2_pi = self.q2(s)
-        q_pi = torch.min(q1_pi, q2_pi)
+        q_pi = torch.min(q1_pi, q2_pi).detach()
         pi_loss = (probs * (self.alpha * log_probs - q_pi)).sum(dim=1).mean()
         self.pi_opt.zero_grad(set_to_none=True)
         pi_loss.backward()

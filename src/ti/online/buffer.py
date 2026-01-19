@@ -45,15 +45,18 @@ class OnlineReplayBuffer:
     def sample_nstep(self, batch_size, n_step, gamma):
         n_step = int(n_step)
         if n_step <= 1:
-            return self.sample_with_reward(batch_size)
+            s, a, r, sp, d = self.sample_with_reward(batch_size)
+            return s, a, r, sp, d, 1
         nenv = int(self.num_envs)
         max_base = self.size - n_step * nenv
         if max_base <= 0:
-            return self.sample_with_reward(batch_size)
+            s, a, r, sp, d = self.sample_with_reward(batch_size)
+            return s, a, r, sp, d, 1
 
         collected = []
+        collected_count = 0
         tries = 0
-        while len(collected) < batch_size and tries < 10:
+        while collected_count < batch_size and tries < 10:
             tries += 1
             cand = torch.randint(0, max_base, (batch_size * 2,), device=self.device)
             t0 = self.timestep[cand]
@@ -67,9 +70,11 @@ class OnlineReplayBuffer:
             valid_idx = cand[valid]
             if valid_idx.numel() > 0:
                 collected.append(valid_idx)
+                collected_count += int(valid_idx.numel())
 
-        if not collected:
-            return self.sample_with_reward(batch_size)
+        if collected_count < batch_size:
+            s, a, r, sp, d = self.sample_with_reward(batch_size)
+            return s, a, r, sp, d, 1
 
         base = torch.cat(collected, dim=0)[:batch_size]
 
@@ -92,4 +97,4 @@ class OnlineReplayBuffer:
         last_idx = torch.where(not_done, base + (n_step - 1) * nenv, last_idx)
         sp = self.sp[last_idx]
         d = (~not_done).to(self.d.dtype)
-        return s, a, returns, sp, d
+        return s, a, returns, sp, d, n_step

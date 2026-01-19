@@ -124,6 +124,7 @@ def run_online_training(
             "sac_entropy_alpha": 0.2,
             "sac_entropy_autotune": True,
             "sac_target_entropy_ratio": 0.98,
+            "sac_hard_target": False,
             "eps_start": 1.0,
             "eps_end": 0.05,
             "eps_decay_steps": 100000,
@@ -361,19 +362,22 @@ def run_online_training(
 
         if buffer.size >= online_cfg["batch_size"] and step % online_cfg["update_every"] == 0:
             n_step = int(online_cfg.get("n_step", 1))
-            s, a, r, sp, d = buffer.sample_nstep(online_cfg["batch_size"], n_step, online_cfg["gamma"])
+            s, a, r, sp, d, n_step_used = buffer.sample_nstep(
+                online_cfg["batch_size"], n_step, online_cfg["gamma"]
+            )
             with torch.no_grad():
                 z_sp = encode_fn(sp)
             z_s = encode_fn(s).detach()
             last_q_loss, last_pi_loss, last_alpha, _ = agent.update(
-                (z_s, a, r, z_sp, d), gamma=online_cfg["gamma"], n_step=n_step
+                (z_s, a, r, z_sp, d), gamma=online_cfg["gamma"], n_step=n_step_used
             )
 
         if buffer.size >= online_cfg["rep_batch_size"] and step % online_cfg["rep_update_every"] == 0:
             last_rep_metric = rep_update_fn(step)
 
-        if step % online_cfg["target_update_every"] == 0:
-            agent.sync_target()
+        if online_cfg.get("sac_hard_target", False):
+            if step % int(online_cfg["target_update_every"]) == 0:
+                agent.sync_target()
 
         epsilon = eps_end + (eps_start - eps_end) * max(0.0, 1.0 - step / eps_steps)
 
