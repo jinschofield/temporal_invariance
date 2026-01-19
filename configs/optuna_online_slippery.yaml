@@ -1,5 +1,5 @@
 optuna:
-  study_name: ti_online_optuna_slippery_rainbowlite
+  study_name: ti_online_optuna_slippery_sac
   direction: maximize
   n_trials: 20
 
