@@ -13,7 +13,7 @@ from ti.envs import make_env
 from ti.figures.helpers import build_maze_cfg, get_env_spec
 from ti.models.biscuit import BISCUIT_VAE
 from ti.models.rep_methods import OfflineRepLearner
-from ti.online.agent_dqn import DQNAgent
+from ti.online.agent_sac import DiscreteSACAgent
 from ti.online.buffer import OnlineReplayBuffer
 from ti.online.intrinsic import EpisodicEllipticalBonus
 from ti.training.cbm_train import ancestors_in_dyn_graph, train_cbm_models
@@ -117,8 +117,13 @@ def run_online_training(
             "q_lr": 0.0005,
             "q_hidden": 128,
             "q_layers": 2,
-            "double_dqn": True,
             "n_step": 3,
+            "sac_actor_lr": 0.0003,
+            "sac_alpha_lr": 0.0003,
+            "sac_tau": 0.005,
+            "sac_entropy_alpha": 0.2,
+            "sac_entropy_autotune": True,
+            "sac_target_entropy_ratio": 0.98,
             "eps_start": 1.0,
             "eps_end": 0.05,
             "eps_decay_steps": 100000,
@@ -251,14 +256,19 @@ def run_online_training(
     else:
         raise ValueError(f"Unsupported online method: {method}")
 
-    agent = DQNAgent(
+    agent = DiscreteSACAgent(
         input_dim=rep_dim,
         n_actions=maze_cfg["n_actions"],
         hidden_dim=online_cfg["q_hidden"],
         hidden_layers=int(online_cfg.get("q_layers", 2)),
-        lr=online_cfg["q_lr"],
+        q_lr=online_cfg["q_lr"],
+        actor_lr=online_cfg.get("sac_actor_lr", online_cfg["q_lr"]),
+        alpha_lr=online_cfg.get("sac_alpha_lr", 0.0003),
+        tau=online_cfg.get("sac_tau", 0.005),
+        entropy_alpha=online_cfg.get("sac_entropy_alpha", 0.2),
+        entropy_autotune=online_cfg.get("sac_entropy_autotune", True),
+        target_entropy_ratio=online_cfg.get("sac_target_entropy_ratio", 0.98),
         device=device,
-        double=online_cfg.get("double_dqn", True),
     )
 
     bonus = EpisodicEllipticalBonus(
@@ -295,6 +305,8 @@ def run_online_training(
             log_every = 0
 
     last_q_loss = None
+    last_pi_loss = None
+    last_alpha = None
     last_rep_metric = None
 
     if log_every:
@@ -353,7 +365,9 @@ def run_online_training(
             with torch.no_grad():
                 z_sp = encode_fn(sp)
             z_s = encode_fn(s).detach()
-            last_q_loss = agent.update((z_s, a, r, z_sp, d), gamma=online_cfg["gamma"], n_step=n_step)
+            last_q_loss, last_pi_loss, last_alpha, _ = agent.update(
+                (z_s, a, r, z_sp, d), gamma=online_cfg["gamma"], n_step=n_step
+            )
 
         if buffer.size >= online_cfg["rep_batch_size"] and step % online_cfg["rep_update_every"] == 0:
             last_rep_metric = rep_update_fn(step)
@@ -368,6 +382,8 @@ def run_online_training(
             steps_per_sec = step / max(elapsed, 1e-9)
             eta = (total_steps - step) / max(steps_per_sec, 1e-9)
             q_loss_str = f"{last_q_loss:.4f}" if last_q_loss is not None else "n/a"
+            pi_loss_str = f"{last_pi_loss:.4f}" if last_pi_loss is not None else "n/a"
+            alpha_str = f"{last_alpha:.3f}" if last_alpha is not None else "n/a"
             rep_str = f"{last_rep_metric:.4f}" if last_rep_metric is not None else "n/a"
             if len(success_window) > 0:
                 success_rate = sum(success_window) / float(len(success_window))
@@ -389,7 +405,8 @@ def run_online_training(
                 auc_str = "n/a"
             print(
                 f"[Online] step {step}/{total_steps} eps={epsilon:.3f} buffer={buffer.size} "
-                 f"q_loss={q_loss_str} rep_metric={rep_str} success={success_str} "
+                f"q_loss={q_loss_str} pi_loss={pi_loss_str} alpha={alpha_str} rep_metric={rep_str} "
+                f"success={success_str} "
                 f"ema={success_ema_str} cum={success_cum_str} auc={auc_str} "
                 f"{steps_per_sec:.1f} steps/s ETA {eta/60:.1f}m",
                 flush=True,

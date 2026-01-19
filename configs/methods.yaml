@@ -61,8 +61,13 @@ methods:
     q_lr: 0.0005
     q_hidden: 256
     q_layers: 3
-    double_dqn: true
     n_step: 3
+    sac_actor_lr: 3.0e-4
+    sac_alpha_lr: 3.0e-4
+    sac_tau: 0.005
+    sac_entropy_alpha: 0.2
+    sac_entropy_autotune: true
+    sac_target_entropy_ratio: 0.98
     eps_start: 1.0
     eps_end: 0.05
     eps_decay_steps: 100000
