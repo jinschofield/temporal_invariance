@@ -59,7 +59,8 @@ methods:
     target_update_every: 1000
     gamma: 0.99
     q_lr: 0.0005
-    q_hidden: 128
+    q_hidden: 256
+    q_layers: 3
     double_dqn: true
     n_step: 3
     eps_start: 1.0

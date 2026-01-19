@@ -5,17 +5,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def _build_mlp(input_dim, hidden_dim, hidden_layers):
+    layers = []
+    in_dim = input_dim
+    for _ in range(int(hidden_layers)):
+        layers.append(nn.Linear(in_dim, hidden_dim))
+        layers.append(nn.ReLU())
+        in_dim = hidden_dim
+    return nn.Sequential(*layers), in_dim
+
+
 class DuelingQNetwork(nn.Module):
-    def __init__(self, input_dim, n_actions, hidden_dim=128):
+    def __init__(self, input_dim, n_actions, hidden_dim=128, hidden_layers=2):
         super().__init__()
-        self.trunk = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-        )
-        self.value = nn.Linear(hidden_dim, 1)
-        self.advantage = nn.Linear(hidden_dim, n_actions)
+        self.trunk, trunk_dim = _build_mlp(input_dim, hidden_dim, hidden_layers)
+        self.value = nn.Linear(trunk_dim, 1)
+        self.advantage = nn.Linear(trunk_dim, n_actions)
 
     def forward(self, x):
         h = self.trunk(x)
@@ -26,12 +31,17 @@ class DuelingQNetwork(nn.Module):
 
 
 class DQNAgent:
-    def __init__(self, input_dim, n_actions, hidden_dim, lr, device, double=True):
+    def __init__(self, input_dim, n_actions, hidden_dim, lr, device, double=True, hidden_layers=2):
         self.n_actions = int(n_actions)
         self.device = device
         self.double = bool(double)
 
-        self.q = DuelingQNetwork(input_dim, self.n_actions, hidden_dim=hidden_dim).to(device)
+        self.q = DuelingQNetwork(
+            input_dim,
+            self.n_actions,
+            hidden_dim=hidden_dim,
+            hidden_layers=hidden_layers,
+        ).to(device)
         self.q_target = copy.deepcopy(self.q).to(device)
         self.opt = torch.optim.Adam(self.q.parameters(), lr=lr)
 
